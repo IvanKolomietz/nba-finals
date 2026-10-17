@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Model report card – NBA Title Odds{% endblock %}
+{% block body %}
+{% set S = {} %}{% for r in bt.summary %}{% set _ = S.update({r.model: r}) %}{% endfor %}
+{% set full, rec, net, best, uni = S.full, S.record_only, S.net_rating_only, S.best_record, S.uniform %}
+<h1>Model report card</h1>
+<p class="lede">A walk-forward backtest over {{ full.seasons }} seasons ({{ bt.first_season }} to {{ bt.last_season }}).
+For each season, the model was trained <strong>only on earlier seasons</strong>, then asked for title odds
+on the eve of the playoffs. Nothing from the season being predicted was used to train or tune it.</p>
+
+<div class="grid">
+  <div class="card stat"><div class="lbl">Champion was the model's #1 pick</div><div class="num">{{ full.top1 | pct(0) }}</div><div class="lbl">Best record: {{ best.top1 | pct(0) }} · Win %-only model: {{ rec.top1 | pct(0) }}</div></div>
+  <div class="card stat"><div class="lbl">Champion was in the model's top 3</div><div class="num">{{ full.top3 | pct(0) }}</div><div class="lbl">Best record: {{ best.top3 | pct(0) }} · Win %-only model: {{ rec.top3 | pct(0) }}</div></div>
+  <div class="card stat"><div class="lbl">Average title chance given to the eventual champion</div><div class="num">{{ full.avg_p_champ | pct(0) }}</div><div class="lbl">Picking at random: {{ uni.avg_p_champ | pct(1) }}</div></div>
+</div>
+
+{% set c1 = bt.comparisons.champ_log_loss_full_minus_record %}
+<div class="callout"><strong>The honest summary.</strong>
+The full model clearly beats guessing, but it is <em>not</em> reliably better than a simple model
+that only knows each team's win %. Its average champion log loss is {{ '%.2f' | format(full.champ_log_loss) }} vs
+{{ '%.2f' | format(rec.champ_log_loss) }}; a bootstrap over seasons puts the difference anywhere from
+{{ '%+.2f' | format(c1.lo) }} to {{ '%+.2f' | format(c1.hi) }} (95% interval), which includes zero.
+At the series and game level the two are essentially tied. With one champion per season,
+{{ full.seasons }} seasons is simply not enough data to separate models that are this close.</div>
+
+<h2>Predicting the champion</h2>
+<p class="muted"><strong>Brier score</strong>: squared error of the probabilities summed over the 16 playoff teams (0 is perfect, lower is better).
+<strong>Log loss</strong>: −ln(chance given to the actual champion), averaged (lower is better; heavily punishes confident misses).
+"Best record wins" puts 100% on the best record, so its log loss is infinite whenever it misses.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Model</th><th>Brier</th><th>Log loss</th><th>Champion #1</th><th>Champion top 3</th><th>Avg. chance given to champion</th></tr></thead>
+  <tbody>{% for r in bt.summary %}
+    <tr class="{{ 'best' if r.model == 'full' }}"><td>{{ r.label }}</td><td>{{ '%.3f' | format(r.champ_brier) }}</td>
+      <td>{{ '%.3f' | format(r.champ_log_loss) if r.champ_log_loss is not none else '∞' }}</td>
+      <td>{{ r.top1 | pct(0) }}</td><td>{{ r.top3 | pct(0) }}</td><td>{{ r.avg_p_champ | pct }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+
+<h2>Predicting series and games</h2>
+<p class="muted">More outcomes means a sharper test: {{ full.series_n }} playoff series and {{ full.game_n }} playoff games.
+The prediction is for the team with home-court advantage. Accuracy = how often the model's favourite won.
+For reference, simply picking the team with home court (the better record) wins {{ bt.home_court_series_rate | pct(1) }} of series and {{ bt.home_game_rate | pct(1) }} of games.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Model</th><th>Series Brier</th><th>Series log loss</th><th>Series accuracy</th><th>Game Brier</th><th>Game log loss</th><th>Game accuracy</th></tr></thead>
+  <tbody>{% for r in bt.summary if r.series_n %}
+    <tr class="{{ 'best' if r.model == 'full' }}"><td>{{ r.label }}</td><td>{{ '%.3f' | format(r.series_brier) }}</td><td>{{ '%.3f' | format(r.series_log_loss) }}</td><td>{{ r.series_acc | pct }}</td>
+      <td>{{ '%.3f' | format(r.game_brier) }}</td><td>{{ '%.3f' | format(r.game_log_loss) }}</td><td>{{ r.game_acc | pct }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Calibration: when the model says 80%, does it happen 80% of the time?</h2>
+<p class="muted">Every backtest series, grouped by how confident the full model was in the favourite.
+Points on the dashed line are perfectly calibrated. Small groups (n ≈ 50) are noisy, so expect wobble.</p>
+<div class="chart-box"><canvas id="calib"></canvas></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Model confidence</th><th>Series</th><th>Predicted</th><th>Actual</th></tr></thead>
+  <tbody>{% for b in bt.calibration %}<tr><td>{{ b.bin }}</td><td>{{ b.n }}</td><td>{{ b.predicted | pct }}</td><td>{{ b.actual | pct }}</td></tr>{% endfor %}</tbody>
+</table></div>
+
+<h2>Season by season</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Season</th><th>Champion</th><th>Full model: chance</th><th>Rank</th><th>Model favourite</th><th>Win %-only: chance</th><th>Net-rating-only: chance</th><th>Best-record rank</th></tr></thead>
+  <tbody>{% for s in bt.seasons | reverse %}
+    <tr><td>{{ s.season }}</td><td>{{ s.champion_abbr }}</td><td>{{ s.full_p_champ | pct }}</td><td>{{ s.full_champ_rank }}</td><td class="l">{{ s.full_favourite }}</td>
+      <td>{{ s.record_only_p_champ | pct }}</td><td>{{ s.net_rating_only_p_champ | pct }}</td><td>{{ s.best_record_champ_rank }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+
+<h2>Which features matter?</h2>
+<p class="muted">Left: the {{ cur.season }} model's coefficients, per standard deviation of the difference between two teams
+(bigger = more influence; negative = more of it lowers a team's chances, all else equal).
+Coefficients of correlated features share credit, so the right-hand test is more trustworthy:
+re-run the whole backtest with one feature removed and see whether out-of-sample log loss gets worse.</p>
+<div class="grid">
+  <div class="card">
+    <strong>Coefficient (current model)</strong>
+    {% set mx = cur.importance | map(attribute='coef') | map('abs') | max %}
+    <table>{% for r in cur.importance %}
+      <tr><td class="l">{{ r.label }}</td><td style="width:40%" title="{{ '%+.3f' | format(r.coef) }}">
+        <div class="hbar" style="width: {{ 100 * (r.coef | abs) / mx }}%; background: var({{ '--series-1' if r.coef > 0 else '--series-2' }})"></div></td>
+        <td>{{ '%+.2f' | format(r.coef) }}</td></tr>{% endfor %}
+    </table>
+    <p class="muted">Blue = raises title chances, orange = lowers. Home court: {{ '%+.2f' | format(cur.home_coef) }}.</p>
+  </div>
+  <div class="card">
+    <strong>Drop-one-feature test (backtest)</strong>
+    <div class="table-wrap"><table><tr><th class="l">Feature removed</th><th>Game</th><th>Series</th></tr>
+    {% for r in bt.ablation %}
+      <tr><td class="l">{{ r.label }}</td><td>{{ '%+.4f' | format(r.game_worse_by) }}</td><td>{{ '%+.4f' | format(r.series_worse_by) }}</td></tr>
+    {% endfor %}</table></div>
+    <p class="muted">Change in out-of-sample log loss for games and series. Positive = removing it made predictions worse, so the feature helps. All of these effects are small; treat values near zero as noise.</p>
+  </div>
+</div>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Only {{ full.seasons }} test seasons, so champion-level metrics have wide error bars.</li>
+  <li>The "health" features are proxies built from who played, not real injury reports; late-season rest looks like injury.</li>
+  <li>Players are assumed to stay with the last team they played for; there is no injury news after the regular season ends.</li>
+  <li>Betting odds are not compared: no free, legitimate source of historical title odds was found.</li>
+  <li>Playoff experience only counts games since 1996-97 (the start of the data), so early seasons undercount veterans.</li>
+  <li>Games are treated as independent coin flips with fixed probabilities; real series have momentum, adjustments and injuries.</li>
+</ul>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cal = {{ bt.calibration | tojson }};
+const c = seriesColors();
+new Chart(document.getElementById('calib'), {
+  type: 'scatter',
+  data: { datasets: [
+    { label: 'Full model', data: cal.map(b => ({ x: 100 * b.predicted, y: 100 * b.actual, n: b.n })),
+      backgroundColor: c[0], borderColor: css('--surface'), borderWidth: 2, pointRadius: 7, pointHoverRadius: 9 },
+    { label: 'Perfect calibration', showLine: true, data: [{ x: 50, y: 50 }, { x: 100, y: 100 }],
+      borderColor: css('--text-muted'), borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 },
+  ]},
+  options: {
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 8 } },
+      tooltip: { filter: i => i.datasetIndex === 0, callbacks: { label: i => `predicted ${i.parsed.x.toFixed(0)}%, won ${i.parsed.y.toFixed(0)}% of ${i.raw.n} series` } } },
+    scales: {
+      x: { min: 50, max: 100, title: { display: true, text: 'Predicted chance favourite wins series (%)' }, grid: { color: css('--grid') } },
+      y: { min: 0, max: 100, title: { display: true, text: 'Actually won (%)' }, grid: { color: css('--grid') } },
+    },
+  },
+});
+</script>
+{% endblock %}

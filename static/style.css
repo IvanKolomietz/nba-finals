@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ef;
+  --border: #e2e1dc;
+  --grid: #ebeae6;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #7a7974;
+  --accent: #2a78d6;
+  --good: #008300;
+  --bad: #e34948;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #6250d6; --series-8: #e34948;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #1a1a19; --surface-2: #232321; --border: #34342f; --grid: #2c2c29;
+    --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+    --accent: #3987e5; --good: #3fae3f; --bad: #e66767;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1a19; --surface-2: #232321; --border: #34342f; --grid: #2c2c29;
+  --text-primary: #f0efec; --text-secondary: #c3c2b7; --text-muted: #8f8e86;
+  --accent: #3987e5; --good: #3fae3f; --bad: #e66767;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--surface); color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+header { border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; justify-content: space-between; padding-top: 12px; padding-bottom: 12px; }
+.brand { font-weight: 700; color: var(--text-primary); text-decoration: none; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav a { padding: 6px 10px; border-radius: 6px; color: var(--text-secondary); text-decoration: none; }
+nav a.on, nav a:hover { background: var(--surface); color: var(--text-primary); }
+a { color: var(--accent); }
+h1 { font-size: 26px; margin: 28px 0 4px; }
+h2 { font-size: 18px; margin: 32px 0 8px; }
+p { max-width: 72ch; }
+.muted { color: var(--text-muted); }
+.lede { color: var(--text-secondary); margin-top: 0; }
+footer { padding-top: 32px; padding-bottom: 32px; font-size: 13px; }
+
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.stat .num { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .lbl { color: var(--text-secondary); font-size: 13px; }
+.callout { border-left: 3px solid var(--accent); background: var(--surface-2); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th { color: var(--text-secondary); font-weight: 600; font-size: 13px; }
+th:first-child, td:first-child, td.l, th.l { text-align: left; }
+tr.best td { font-weight: 600; }
+td.barcell { width: 40%; min-width: 140px; }
+.hbar { height: 10px; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); }
+.pill.champ { border-color: var(--good); color: var(--good); font-weight: 600; }
+.chart-box { position: relative; height: 340px; }
+select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); }
+code { font-size: 13px; }
+details summary { cursor: pointer; color: var(--text-secondary); }

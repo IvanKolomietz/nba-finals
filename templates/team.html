@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ t.name }} – NBA Title Odds{% endblock %}
+{% block body %}
+<h1>{{ t.name }}</h1>
+<p class="lede">{{ t.conference }}ern Conference · {{ t.wins }}-{{ t.losses }}{% if t.seed %} · {{ t.seed }} seed{% endif %}
+  {% if t.actual_round %} · <span class="pill {{ 'champ' if t.actual_round == 'Champion' }}">Actual result: {{ t.actual_round }}</span>{% endif %}</p>
+
+<form onsubmit="return false"><label class="muted" for="pick">Switch team </label>
+<select id="pick" onchange="location.href='/team/' + this.value">
+  {% for o in teams %}<option value="{{ o.abbr }}" {{ 'selected' if o.abbr == t.abbr }}>{{ o.name }}</option>{% endfor %}
+</select></form>
+
+<h2>Playoff odds (eve of the playoffs)</h2>
+{% if t.odds %}
+<div class="grid">
+  <div class="card stat"><div class="lbl">Reach 2nd round</div><div class="num">{{ t.odds.r2 | pct(0) }}</div></div>
+  <div class="card stat"><div class="lbl">Reach conference finals</div><div class="num">{{ t.odds.cf | pct(0) }}</div></div>
+  <div class="card stat"><div class="lbl">Reach Finals</div><div class="num">{{ t.odds.finals | pct }}</div></div>
+  <div class="card stat"><div class="lbl">Win title</div><div class="num">{{ t.odds.champion | pct }}</div></div>
+</div>
+{% else %}
+<p>Did not make the 16-team playoff field.
+{% if t.playoff_pct_end_of_season is not none %}(Chance of getting through the play-in at the end of the regular season: {{ t.playoff_pct_end_of_season | pct(0) }}.){% endif %}</p>
+{% endif %}
+
+<h2>Title and playoff chances during the season</h2>
+<div class="chart-box"><canvas id="hist"></canvas></div>
+
+<h2>Model inputs</h2>
+<p class="muted">Rank is out of 30 teams (1 = highest value; for "games missed" and age, high is not necessarily good).</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Feature</th><th>Value</th><th>League rank</th></tr></thead>
+  <tbody>
+  {% for key, label in labels.items() %}
+    {% set v = t.stats[key] %}
+    <tr><td>{{ label }}</td>
+      <td>{% if key in ['win_pct', 'star_share', 'health', 'top3_missed'] %}{{ v | pct }}{% elif key == 'playoff_exp' %}{{ '%.0f' | format(v) }}{% else %}{{ '%+.1f' | format(v) if key in ['adj_net','net_last20','def_rel'] else '%.1f' | format(v) }}{% endif %}</td>
+      <td>{{ t.ranks[key] }}</td></tr>
+  {% endfor %}
+  <tr><td>Offensive rating (pts / 100 poss.)</td><td>{{ '%.1f' | format(t.stats.off_rtg) }}</td><td>{{ t.ranks.off_rel }}</td></tr>
+  <tr><td>Defensive rating (pts allowed / 100 poss.)</td><td>{{ '%.1f' | format(t.stats.def_rtg) }}</td><td>{{ t.ranks.def_rel }}</td></tr>
+  <tr><td>Strength of schedule (+ = harder)</td><td>{{ '%+.1f' | format(t.stats.sos) }}</td><td>{{ t.ranks.sos }}</td></tr>
+  </tbody>
+</table></div>
+
+<h2>Top 8 players by minutes</h2>
+<p class="muted">"Last 15" is the share of the team's last 15 regular-season games the player appeared in (our health proxy: it can't tell injury from rest).</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Player</th><th>Age</th><th>Games</th><th>Min / game</th><th>Game Score / game</th><th>Last 15</th></tr></thead>
+  <tbody>{% for p in t.top_players %}
+    <tr><td>{{ p.name }}</td><td>{{ p.age if p.age is not none else '–' }}</td><td>{{ p.games }}</td><td>{{ p.mpg }}</td><td>{{ p.gmsc }}</td><td>{{ p.recent | pct(0) }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const h = {{ history | tojson }};
+const c = seriesColors();
+new Chart(document.getElementById('hist'), {
+  type: 'line',
+  data: { labels: h.map(p => p.date), datasets: [
+    { label: 'Make playoffs', data: h.map(p => 100 * p.playoffs), borderColor: c[0], backgroundColor: c[0], borderWidth: 2, pointRadius: 3, pointHoverRadius: 6 },
+    { label: 'Win title', data: h.map(p => 100 * p.title), borderColor: c[1], backgroundColor: c[1], borderWidth: 2, pointRadius: 3, pointHoverRadius: 6 },
+  ]},
+  options: {
+    maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 8 } },
+               tooltip: { callbacks: { label: x => `${x.dataset.label}: ${x.parsed.y.toFixed(1)}%` } } },
+    scales: { y: { min: 0, max: 100, title: { display: true, text: 'Chance (%)' }, grid: { color: css('--grid') } }, x: { grid: { display: false } } },
+  },
+});
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ cur.season }} championship odds</h1>
+<p class="lede">Chance each playoff team wins the title, estimated on the eve of the playoffs
+from {{ "{:,}".format(cur.n_sims) }} simulated brackets. The model only uses regular-season
+information and was trained on the {{ cur.train_seasons }} playoffs.</p>
+
+{% set fav = contenders[0] %}
+{% set champ = cur.teams | selectattr("abbr", "equalto", cur.champion) | first if cur.champion else None %}
+<div class="grid">
+  <div class="card stat"><div class="lbl">Model favourite</div><div class="num">{{ fav.abbr }} {{ fav.odds.champion | pct }}</div><div class="lbl">{{ fav.name }}, {{ fav.wins }}-{{ fav.losses }}</div></div>
+  {% if champ %}
+  <div class="card stat"><div class="lbl">Actual champion</div><div class="num">{{ champ.abbr }} {{ champ.odds.champion | pct }}</div><div class="lbl">{{ champ.name }}: the model ranked them #{{ contenders.index(champ) + 1 }} of 16</div></div>
+  {% endif %}
+  <div class="card stat"><div class="lbl">Top-3 combined</div><div class="num">{{ (contenders[0].odds.champion + contenders[1].odds.champion + contenders[2].odds.champion) | pct(0) }}</div><div class="lbl">{{ contenders[0].abbr }}, {{ contenders[1].abbr }}, {{ contenders[2].abbr }}</div></div>
+</div>
+
+{% if champ %}
+<div class="callout">The {{ cur.season }} season is over, so these are the odds the model
+<em>would have given</em> before the playoffs started. They were not tuned to the result:
+this season is also one of the test seasons in the <a href="/report">report card</a>.</div>
+{% endif %}
+
+<h2>Title odds by team</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Team</th><th>Seed</th><th>Record</th><th>2nd round</th><th>Conf. finals</th><th>Finals</th><th>Title</th><th class="l barcell">&nbsp;</th><th class="l">What happened</th></tr></thead>
+  <tbody>
+  {% set top = contenders[0].odds.champion %}
+  {% for t in contenders %}
+    <tr>
+      <td><a href="/team/{{ t.abbr }}">{{ t.name }}</a></td>
+      <td>{{ t.conference[0] }}{{ t.seed }}</td>
+      <td>{{ t.wins }}-{{ t.losses }}</td>
+      <td>{{ t.odds.r2 | pct(0) }}</td>
+      <td>{{ t.odds.cf | pct(0) }}</td>
+      <td>{{ t.odds.finals | pct(0) }}</td>
+      <td><strong>{{ t.odds.champion | pct }}</strong></td>
+      <td class="l barcell" title="{{ t.abbr }}: {{ t.odds.champion | pct }}"><div class="hbar" style="width: {{ 100 * t.odds.champion / top }}%"></div></td>
+      <td class="l">{% if t.actual_round %}<span class="pill {{ 'champ' if t.actual_round == 'Champion' }}">{{ t.actual_round }}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>How the odds moved during the regular season</h2>
+<p class="muted">At each date the model uses only games played so far (with early-season stats
+pulled toward average), then simulates the rest of the season, the play-in and the playoffs.
+This in-season view is <strong>not</strong> backtested; only the eve-of-playoffs odds are.</p>
+<div class="chart-box"><canvas id="trend"></canvas></div>
+<details><summary>Table view</summary>
+<div class="table-wrap"><table>
+  <thead><tr><th>Date</th>{% for s in trend.series %}<th>{{ s.abbr }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for d in trend.dates %}{% set i = loop.index0 %}<tr><td>{{ d }}</td>{% for s in trend.series %}<td>{{ s["values"][i] | pct }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table></div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const trend = {{ trend | tojson }};
+const colors = seriesColors();
+new Chart(document.getElementById('trend'), {
+  type: 'line',
+  data: {
+    labels: trend.dates,
+    datasets: trend.series.map((s, i) => ({
+      label: s.abbr, data: s.values.map(v => 100 * v), borderColor: colors[i], backgroundColor: colors[i],
+      borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, tension: 0.2,
+    })),
+  },
+  options: {
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', align: 'start', labels: { usePointStyle: true, boxWidth: 8 } },
+      tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(1)}%` } },
+    },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Title chance (%)' }, grid: { color: css('--grid') } },
+      x: { grid: { display: false } },
+    },
+  },
+});
+</script>
+{% endblock %}

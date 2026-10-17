@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}NBA Title Odds{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="/">NBA Title Odds <span class="muted">{{ cur.season }}</span></a>
+    <nav>
+      <a href="/" class="{{ 'on' if page == 'odds' }}">Title odds</a>
+      <a href="/team/{{ cur.teams[0].abbr }}" class="{{ 'on' if page == 'team' }}">Teams</a>
+      <a href="/report" class="{{ 'on' if page == 'report' }}">Model report card</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+{% block body %}{% endblock %}
+</main>
+<footer class="wrap muted">
+  Data: stats.nba.com via the <code>nba_api</code> package. Built {{ cur.generated }}.
+  A student project, not betting advice.
+</footer>
+<script>
+// Shared chart styling read from the CSS tokens, so light/dark mode stay in sync.
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function seriesColors() { return [1,2,3,4,5,6,7,8].map(i => css('--series-' + i)); }
+if (window.Chart) {
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = css('--text-secondary');
+  Chart.defaults.borderColor = css('--grid');
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

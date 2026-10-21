@@ -193,9 +193,3 @@ app.py          Flask dashboard
 tests/          unit tests (features, simulation, probabilities, model, app)
 ```
 
-## How this was built
-
-Ivan Kolomiets set the goals and direction for this project: what to predict, which inputs to
-consider, and that honest validation against baselines should be the centrepiece. The code,
-analysis and this README were written by [Claude Code](https://claude.com/claude-code) (Anthropic's AI
-coding assistant), working from that brief.
